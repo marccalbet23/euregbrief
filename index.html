@@ -225,9 +225,7 @@
         <h2>Get the DIWASS practical checklist</h2>
         <p>A concise 2026/2027 checklist covering the transition, operational questions and what to verify before Annex VII goes fully digital.</p>
 
-        <!-- NETLIFY: this form works automatically when deployed on Netlify. -->
-        <form name="diwass-checklist" method="POST" data-netlify="true" class="form-row">
-          <input type="hidden" name="form-name" value="diwass-checklist">
+        <form id="diwass-form" class="form-row">
           <input type="email" name="email" autocomplete="email" placeholder="Work email" required>
           <select name="role" required>
             <option value="" disabled selected>Your role</option>
@@ -238,7 +236,8 @@
             <option>Software provider</option>
             <option>Other</option>
           </select>
-          <button type="submit">Send me the checklist</button>
+          <button type="submit" id="submit-button">Send me the checklist</button>
+          <div id="form-status" aria-live="polite" style="font-size:13px; line-height:19px; min-height:19px;"></div>
         </form>
 
         <div class="tiny">No spam. Only relevant DIWASS and EU compliance updates. Unsubscribe anytime.</div>
@@ -349,5 +348,40 @@
       <div>Independent EU compliance intelligence · marccg@euregbrief.com</div>
     </div>
   </footer>
+
+  <script>
+    const form = document.getElementById('diwass-form');
+    const button = document.getElementById('submit-button');
+    const status = document.getElementById('form-status');
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      button.disabled = true;
+      button.textContent = 'Sending…';
+      status.textContent = '';
+
+      const data = Object.fromEntries(new FormData(form).entries());
+
+      try {
+        const response = await fetch('/api/subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+
+        const payload = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(payload.error || 'Unable to submit the form.');
+
+        form.reset();
+        status.textContent = 'Done — check your inbox for the checklist.';
+      } catch (error) {
+        status.textContent = 'Something went wrong. Please try again or email marccg@euregbrief.com.';
+      } finally {
+        button.disabled = false;
+        button.textContent = 'Send me the checklist';
+      }
+    });
+  </script>
+
 </body>
 </html>
