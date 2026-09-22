@@ -1,0 +1,12 @@
+{
+  "name": "euregbrief",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "resend": "6.28.1"
+  }
+}
