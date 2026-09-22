@@ -2,4 +2,4 @@ User-agent: *
 Allow: /
 Disallow: /api/
 
-Sitemap: https://euregbrief.vercel.app/sitemap.xml
+Sitemap: https://www.euregbrief.com/sitemap.xml
