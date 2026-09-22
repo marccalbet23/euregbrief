@@ -1,7 +1,8 @@
 import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-const SEGMENT_ID = process.env.RESEND_DIWASS_SEGMENT_ID;
+const MARKETING_TOPIC_ID = 'cda7264f-9726-4325-b737-9dfa24459fed';
+const CONSENT_VERSION = '2026-09-22-v1';
 
 const allowedRoles = new Set([
   'Waste operator / recycler',
@@ -18,13 +19,15 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
-  if (!process.env.RESEND_API_KEY || !SEGMENT_ID) {
-    console.error('Missing Resend environment variables');
+  if (!process.env.RESEND_API_KEY) {
+    console.error('Missing Resend API key');
     return res.status(500).json({ error: 'Email service is not configured' });
   }
 
   const email = String(req.body?.email ?? '').trim().toLowerCase();
   const role = String(req.body?.role ?? '').trim();
+  const marketingConsent = req.body?.marketingConsent === true;
+  const consentAt = new Date().toISOString();
 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return res.status(400).json({ error: 'Please enter a valid email address' });
@@ -34,12 +37,37 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: 'Please select a valid role' });
   }
 
+  const baseProperties = {
+    role,
+    lead_source: 'website_diwass_checklist',
+  };
+
+  const consentProperties = marketingConsent
+    ? {
+        marketing_consent: 'yes',
+        marketing_consent_at: consentAt,
+        consent_version: CONSENT_VERSION,
+      }
+    : {};
+
   try {
     const { error: createError } = await resend.contacts.create({
       email,
       unsubscribed: false,
-      properties: { role },
-      segments: [{ id: SEGMENT_ID }],
+      properties: {
+        ...baseProperties,
+        ...(marketingConsent
+          ? consentProperties
+          : {
+              marketing_consent: 'no',
+              marketing_consent_at: '',
+              consent_version: '',
+            }),
+      },
+      topics: [{
+        id: MARKETING_TOPIC_ID,
+        subscription: marketingConsent ? 'opt_in' : 'opt_out',
+      }],
     });
 
     if (createError) {
@@ -50,7 +78,10 @@ export default async function handler(req, res) {
 
       const { error: updateError } = await resend.contacts.update({
         email,
-        properties: { role },
+        properties: {
+          ...baseProperties,
+          ...(marketingConsent ? consentProperties : {}),
+        },
       });
 
       if (updateError) {
@@ -58,21 +89,28 @@ export default async function handler(req, res) {
         return res.status(502).json({ error: 'Unable to update the contact' });
       }
 
-      const { error: segmentError } = await resend.contacts.segments.add({
-        email,
-        segmentId: SEGMENT_ID,
-      });
+      if (marketingConsent) {
+        const { error: topicError } = await resend.contacts.topics.update({
+          email,
+          topics: [{ id: MARKETING_TOPIC_ID, subscription: 'opt_in' }],
+        });
 
-      if (segmentError && segmentError.statusCode !== 409) {
-        console.error('Segment assignment failed', segmentError);
-        return res.status(502).json({ error: 'Unable to assign the contact' });
+        if (topicError) {
+          console.error('Topic opt-in failed', topicError);
+          return res.status(502).json({ error: 'Unable to save email preferences' });
+        }
       }
     }
 
     const { error: eventError } = await resend.events.send({
       event: 'diwass.checklist.requested',
       email,
-      payload: { role },
+      payload: {
+        role,
+        marketingConsent,
+        consentAt,
+        consentVersion: CONSENT_VERSION,
+      },
     });
 
     if (eventError) {
