@@ -115,6 +115,15 @@
     }
 
     input:focus, select:focus { border-color: rgba(139,216,189,.55); box-shadow: 0 0 0 3px rgba(139,216,189,.08); }
+    .consent-row {
+      display: grid; grid-template-columns: 18px 1fr; gap: 10px; align-items: start;
+      color: var(--muted); font-size: 13px; line-height: 1.45; cursor: pointer;
+    }
+    .consent-row input[type="checkbox"] {
+      width: 18px; height: 18px; margin: 1px 0 0; padding: 0;
+      accent-color: var(--accent);
+    }
+    .privacy-link { color: var(--accent-2); text-decoration: underline; text-underline-offset: 2px; }
 
     button, .button {
       display: inline-flex; justify-content: center; align-items: center;
@@ -236,11 +245,15 @@
             <option>Software provider</option>
             <option>Other</option>
           </select>
+          <label class="consent-row">
+            <input type="checkbox" name="marketingConsent" value="yes">
+            <span>I’d like to receive occasional DIWASS and EU compliance updates by email. This is optional and I can unsubscribe at any time.</span>
+          </label>
           <button type="submit" id="submit-button">Send me the checklist</button>
           <div id="form-status" aria-live="polite" style="font-size:13px; line-height:19px; min-height:19px;"></div>
         </form>
 
-        <div class="tiny">No spam. Only relevant DIWASS and EU compliance updates. Unsubscribe anytime.</div>
+        <div class="tiny">We use your email to deliver the checklist. Future updates are optional and require the checkbox above. See our <a class="privacy-link" href="/privacy.html">Privacy Notice</a>.</div>
         <div class="trust">Built for people who need to operate compliantly — not spend their week reading regulations.</div>
       </aside>
     </div>
@@ -345,7 +358,7 @@
   <footer>
     <div class="wrap footer-inner">
       <div>© 2026 EU Reg Brief</div>
-      <div>Independent EU compliance intelligence · marccg@euregbrief.com</div>
+      <div>Independent EU compliance intelligence · <a href="mailto:marccg@euregbrief.com">marccg@euregbrief.com</a> · <a class="privacy-link" href="/privacy.html">Privacy</a></div>
     </div>
   </footer>
 
@@ -361,6 +374,7 @@
       status.textContent = '';
 
       const data = Object.fromEntries(new FormData(form).entries());
+      data.marketingConsent = form.elements.marketingConsent.checked;
 
       try {
         const response = await fetch('/api/subscribe', {
